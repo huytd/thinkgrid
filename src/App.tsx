@@ -29,7 +29,6 @@ interface ContentNode {
 	text: string;
 	row: number;
 	col: number;
-	checkbox?: boolean;
 }
 
 function App() {
@@ -159,21 +158,6 @@ function App() {
 					const node = createBox(Cursor.startCol, Cursor.startRow, Cursor.col + 1, Cursor.row + 1);
 					console.log("DBG::NEW NODE", node);
 					contentList.push(node);
-				}
-				e.preventDefault();
-			}
-			if (e.key === '*') {
-				let existingCheckbox = contentList.findIndex(item => item.col === Cursor.col && item.row === Cursor.row && item.checkbox === true);
-				if (existingCheckbox === -1) {
-					contentList.push({
-						text: '',
-						col: Cursor.col,
-						row: Cursor.row,
-						checkbox: true
-					});
-				} else {
-					const checked = contentList[existingCheckbox].text !== '';
-					contentList[existingCheckbox].text = checked ? '' : '1';
 				}
 				e.preventDefault();
 			}
@@ -358,25 +342,15 @@ function App() {
 					}
 
 					for (let content of contentNodes) {
-						if (!content.checkbox) {
-							const { text, row, col } = content;
-							let lineNo = 0;
-							for (let line of text.split('\n')) {
-								ctx.fillText(
-									line,
-									col * CELL_WIDTH,
-									(row + lineNo) * CELL_HEIGHT
-								);
-								lineNo++;
-							}
-						} else {
-							const checked = content.text !== '';
-							const { row, col } = content;
-							ctx.fillStyle = checked ? '#333333' : '#ff3030';
-							ctx.fillText('□', col * CELL_WIDTH, row * CELL_HEIGHT);
-							if (checked) {
-								ctx.fillText('✓', col * CELL_WIDTH, row * CELL_HEIGHT);
-							}
+						const { text, row, col } = content;
+						let lineNo = 0;
+						for (let line of text.split('\n')) {
+							ctx.fillText(
+								line,
+								col * CELL_WIDTH,
+								(row + lineNo) * CELL_HEIGHT
+							);
+							lineNo++;
 						}
 					}
 					ctx.fillStyle = 'currentColor';
