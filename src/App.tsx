@@ -341,28 +341,32 @@ function App() {
 					}
 
 					ctx.fillStyle = 'currentColor';
-					for (let content of contentList) {
+					const backgroundNodes = contentList.filter(node => node.text === HIGHLIGHT_BLOCK);
+					const contentNodes = contentList.filter(node => node.text !== HIGHLIGHT_BLOCK);
+
+					for (let bg of backgroundNodes) {
+						const { text, row, col } = bg;
+						ctx.save();
+						ctx.fillStyle = 'currentColor';
+						ctx.globalAlpha = 0.5;
+						ctx.fillText(
+							text,
+							col * CELL_WIDTH,
+							row * CELL_HEIGHT
+						);
+						ctx.restore();
+					}
+
+					for (let content of contentNodes) {
 						if (!content.checkbox) {
 							const { text, row, col } = content;
 							let lineNo = 0;
 							for (let line of text.split('\n')) {
-                                if (line === HIGHLIGHT_BLOCK) {
-                                    ctx.save();
-                                    ctx.fillStyle = 'currentColor';
-                                    ctx.globalAlpha = 0.5;
-                                    ctx.fillText(
-                                        line,
-                                        col * CELL_WIDTH,
-                                        (row + lineNo) * CELL_HEIGHT
-                                    );
-                                    ctx.restore();
-                                } else {
-                                    ctx.fillText(
-                                        line,
-                                        col * CELL_WIDTH,
-                                        (row + lineNo) * CELL_HEIGHT
-                                    );
-                                }
+								ctx.fillText(
+									line,
+									col * CELL_WIDTH,
+									(row + lineNo) * CELL_HEIGHT
+								);
 								lineNo++;
 							}
 						} else {
