@@ -166,7 +166,7 @@ function App() {
 			Cursor.visual = false;
 		}
 
-		if (!Cursor.insert && !e.metaKey && !e.ctrlKey) {
+		if (!Cursor.insert && !e.metaKey) {
 			if (e.key === 'Enter') {
 				if (Cursor.visual) {
 					Cursor.visual = false;
@@ -203,25 +203,50 @@ function App() {
 				e.preventDefault();
 			}
 			if (e.key === 'j') {
-				if (Cursor.row < ROWS - 1) {
+				if (e.ctrlKey) {
+					contentList.push({
+						text: '↓',
+						row: Cursor.row,
+						col: Cursor.col,
+					});
+				} else if (Cursor.row < ROWS - 1) {
 					Cursor.row += 1;
 				}
 				e.preventDefault();
 			}
 			if (e.key === 'k') {
-				if (Cursor.row > 0) {
+				if (e.ctrlKey) {
+					contentList.push({
+						text: '↑',
+						row: Cursor.row,
+						col: Cursor.col,
+					});
+				} else if (Cursor.row > 0) {
 					Cursor.row -= 1;
 				}
 				e.preventDefault();
 			}
 			if (e.key === 'h') {
-				if (Cursor.col > 0) {
+				if (e.ctrlKey) {
+					contentList.push({
+						text: '←',
+						row: Cursor.row,
+						col: Cursor.col,
+					});
+				} else if (Cursor.col > 0) {
 					Cursor.col -= 1;
 				}
 				e.preventDefault();
 			}
 			if (e.key === 'l') {
-				if (Cursor.col < COLS - 1) {
+				console.log(e.ctrlKey);
+				if (e.ctrlKey) {
+					contentList.push({
+						text: '→',
+						row: Cursor.row,
+						col: Cursor.col,
+					});
+				} else if (Cursor.col < COLS - 1) {
 					Cursor.col += 1;
 				}
 				e.preventDefault();
