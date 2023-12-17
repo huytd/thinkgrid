@@ -64,6 +64,31 @@ function App() {
 	const textInputRef = useRef<HTMLTextAreaElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const getContentInBox = (
+		fromCol: number,
+		fromRow: number,
+		toCol: number,
+		toRow: number
+	) => {
+    // Step 1: Initialize an empty 2D array
+   let boxContent: string[][] = Array(toRow - fromRow + 1).fill([]).map(() => Array(toCol - fromCol + 1).fill(' '));
+
+   // Step 2: Iterate over the contentList array
+   contentList.forEach((node) => {
+       let rowDiff = node.row - fromRow;
+       let colDiff = node.col - fromCol;
+
+       // Check if the node's row and col fall within the box boundaries
+       if (rowDiff >= 0 && rowDiff <= toRow - fromRow && colDiff >= 0 && colDiff <= toCol - fromCol) {
+           // Update the corresponding cell in the 2D array with the node's text
+           boxContent[rowDiff][colDiff] = node.text;
+       }
+   });
+
+   // Step 3: Return the 2D array
+   return boxContent.map(line => line.join("")).join("\n");
+	}
+
 	const createBox = (
 		fromCol: number,
 		fromRow: number,
@@ -114,13 +139,27 @@ function App() {
 		};
 	};
 
-	const showTextInput = (content: string) => {
+	const findIndexAtCursor = () => {
+		return contentList.findIndex(
+			(item) => {
+				const lines = item.text.split("\n");
+				const width = Math.max(1, lines.reduce((max, l) => Math.max(max, l.length), 0));
+				const height = Math.max(1, lines.length);
+				return Cursor.row >= item.row && Cursor.row < item.row + height &&
+				Cursor.col >= item.col && Cursor.col < item.col + width;
+			}
+		);
+	}
+
+	const showTextInput = (content: string, originalRow?: number, originalCol?: number) => {
 		const ref = textInputRef.current;
 		if (ref) {
 			ref.value = content;
 			ref.style.visibility = 'visible';
-			ref.style.top = CELL_HEIGHT * Cursor.row + 'px';
-			ref.style.left = CELL_WIDTH * Cursor.col + 'px';
+			ref.style.top = CELL_HEIGHT * (originalRow ?? Cursor.row) + 'px';
+			ref.style.left = CELL_WIDTH * (originalCol ?? Cursor.col) + 'px';
+			ref.dataset.row = (originalRow ?? Cursor.row) + "";
+			ref.dataset.col = (originalCol ?? Cursor.col) + "";
 			ref.focus();
 		}
 	};
@@ -131,6 +170,8 @@ function App() {
 			ref.style.visibility = 'hidden';
 			ref.style.top = '-200%';
 			ref.style.left = '0px';
+			ref.dataset.row = "";
+			ref.dataset.col = "";
 			ref.blur();
 			canvasRef.current?.focus();
 		}
@@ -149,10 +190,12 @@ function App() {
 					text = text.replace(/<-/, '◂-');
 					text = text.replace(/-/g, '─');
 				}
+				const row = +(ref.dataset.row ?? "0");
+				const col = +(ref.dataset.col ?? "0");
 				contentList.push({
 					text,
-					row: Cursor.row,
-					col: Cursor.col,
+					row: row,
+					col: col
 				});
 				Cursor.insert = false;
 				hideTextInput();
@@ -188,6 +231,17 @@ function App() {
 					Cursor.startCol = Cursor.col;
 				}
 				e.preventDefault();
+			}
+			if (e.key === 'y' && Cursor.visual) {
+				Cursor.visual = false;
+			  const selected = getContentInBox(
+					Cursor.startCol,
+					Cursor.startRow,
+					Cursor.col + 1,
+					Cursor.row + 1
+			  );
+			  console.log("SELECTED", selected);
+		    e.preventDefault();
 			}
 			if (e.key === 'p') {
 				const content = await readTextFromClipboard();
@@ -258,9 +312,9 @@ function App() {
 				e.key === 'J'
 			) {
 				const { col, row } = KEY_DIRECTION[e.key];
-				const editing = contentList.find(
-					(item) => item.row === Cursor.row && item.col === Cursor.col
-				);
+				const editingIndex = findIndexAtCursor();
+				if (editingIndex === -1) return;
+				const editing = contentList[editingIndex];
 				if (editing) {
 					editing.col += col;
 					editing.row += row;
@@ -271,14 +325,14 @@ function App() {
 			}
 			if (e.key === 'e') {
 				e.preventDefault();
-				const editing = contentList.find(
-					(item) => item.row === Cursor.row && item.col === Cursor.col
-				);
+				const editingIndex = findIndexAtCursor();
+				if (editingIndex === -1) return;
+				const editing = contentList[editingIndex];
 				contentList = contentList.filter(
-					(item) => item.row !== Cursor.row || item.col !== Cursor.col
+					(_, index) => index !== editingIndex
 				);
 				Cursor.insert = true;
-				showTextInput(editing?.text ?? '');
+				showTextInput(editing?.text ?? '', editing.row, editing.col);
 			}
 			if (e.key === 'd') {
 				contentList = contentList.filter(
@@ -287,8 +341,10 @@ function App() {
 				e.preventDefault();
 			}
 			if (e.key === 'x') {
+				const editingIndex = findIndexAtCursor();
+				if (editingIndex === -1) return;
 				contentList = contentList.filter(
-					(item) => item.row !== Cursor.row || item.col !== Cursor.col
+					(_, index) => index !== editingIndex
 				);
 				e.preventDefault();
 			}
