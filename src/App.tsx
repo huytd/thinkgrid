@@ -6,6 +6,13 @@ import { drawRoundedRect } from './utils/roundedRect';
 import { absRect } from './utils/math';
 import { HIGHLIGHT_BLOCK } from './constant';
 
+const KEY_DIRECTION = {
+	L: { col: 1, row: 0 },
+	H: { col: -1, row: 0 },
+	K: { col: 0, row: -1 },
+	J: { col: 0, row: 1 },
+};
+
 const CommandBox = () => {
 	return (
 		<div className="command-box">
@@ -33,7 +40,7 @@ interface ContentNode {
 
 function App() {
 	let SCREEN_WIDTH = document.body.clientWidth;
-    let SCREEN_HEIGHT = document.body.clientHeight;
+	let SCREEN_HEIGHT = document.body.clientHeight;
 
 	const CFG_FONT = "32px 'SF Mono'";
 	let CELL_HEIGHT = 16 * 2;
@@ -50,14 +57,19 @@ function App() {
 		row: 5,
 		col: 5,
 		insert: false,
-		visual: false
+		visual: false,
 	};
 
 	const fps = 60;
 	const textInputRef = useRef<HTMLTextAreaElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 
-	const createBox = (fromCol: number, fromRow: number, toCol: number, toRow: number): ContentNode => {
+	const createBox = (
+		fromCol: number,
+		fromRow: number,
+		toCol: number,
+		toRow: number
+	): ContentNode => {
 		const { col, row, width, height } = absRect(
 			fromCol,
 			fromRow,
@@ -88,13 +100,13 @@ function App() {
 			content[0][0] = '┌';
 			content[0][width - 1] = '┐';
 		}
-        if (width === 1 && height === 1) {
-            return {
-                text: HIGHLIGHT_BLOCK,
-                row,
-                col
-            };
-        }
+		if (width === 1 && height === 1) {
+			return {
+				text: HIGHLIGHT_BLOCK,
+				row,
+				col,
+			};
+		}
 		return {
 			text: content.map((line) => line.join('')).join('\n'),
 			row,
@@ -127,12 +139,15 @@ function App() {
 	const textInputKeyDownHandler = (e: KeyboardEvent) => {
 		const ref = textInputRef.current;
 		if (ref) {
-			if (e.key === 'Escape' || ((e.ctrlKey || e.shiftKey) && e.key === 'Enter')) {
+			if (
+				e.key === 'Escape' ||
+				((e.ctrlKey || e.shiftKey) && e.key === 'Enter')
+			) {
 				let text = ref.value;
-				if (text.indexOf("--") !== -1) {
-					text = text.replace(/->/, "-▸");
-					text = text.replace(/<-/, "◂-");
-					text = text.replace(/-/g, "─");
+				if (text.indexOf('--') !== -1) {
+					text = text.replace(/->/, '-▸');
+					text = text.replace(/<-/, '◂-');
+					text = text.replace(/-/g, '─');
 				}
 				contentList.push({
 					text,
@@ -152,11 +167,16 @@ function App() {
 		}
 
 		if (!Cursor.insert && !e.metaKey && !e.ctrlKey) {
-			if (e.key === "Enter") {
+			if (e.key === 'Enter') {
 				if (Cursor.visual) {
 					Cursor.visual = false;
-					const node = createBox(Cursor.startCol, Cursor.startRow, Cursor.col + 1, Cursor.row + 1);
-					console.log("DBG::NEW NODE", node);
+					const node = createBox(
+						Cursor.startCol,
+						Cursor.startRow,
+						Cursor.col + 1,
+						Cursor.row + 1
+					);
+					console.log('DBG::NEW NODE', node);
 					contentList.push(node);
 				}
 				e.preventDefault();
@@ -178,7 +198,7 @@ function App() {
 						col: Cursor.col,
 					});
 				} else {
-					console.error("Cannot read from clipboard");
+					console.error('Cannot read from clipboard');
 				}
 				e.preventDefault();
 			}
@@ -206,17 +226,31 @@ function App() {
 				}
 				e.preventDefault();
 			}
+			if (
+				e.key === 'L' ||
+				e.key === 'H' ||
+				e.key === 'K' ||
+				e.key === 'J'
+			) {
+				const { col, row } = KEY_DIRECTION[e.key];
+				const editing = contentList.find(
+					(item) => item.row === Cursor.row && item.col === Cursor.col
+				);
+				if (editing) {
+					editing.col += col;
+					editing.row += row;
+					Cursor.col += col;
+					Cursor.row += row;
+				}
+				e.preventDefault();
+			}
 			if (e.key === 'e') {
 				e.preventDefault();
 				const editing = contentList.find(
-					(item) =>
-						item.row === Cursor.row &&
-						item.col === Cursor.col
+					(item) => item.row === Cursor.row && item.col === Cursor.col
 				);
 				contentList = contentList.filter(
-					(item) =>
-						item.row !== Cursor.row ||
-						item.col !== Cursor.col
+					(item) => item.row !== Cursor.row || item.col !== Cursor.col
 				);
 				Cursor.insert = true;
 				showTextInput(editing?.text ?? '');
@@ -229,9 +263,7 @@ function App() {
 			}
 			if (e.key === 'x') {
 				contentList = contentList.filter(
-					(item) =>
-						item.row !== Cursor.row ||
-						item.col !== Cursor.col
+					(item) => item.row !== Cursor.row || item.col !== Cursor.col
 				);
 				e.preventDefault();
 			}
@@ -241,18 +273,17 @@ function App() {
 				showTextInput('');
 			}
 		}
-
-	}
+	};
 
 	const documentRef = useRef<Document>(document);
-	useEventListener("keydown", globalKeyDownHandler, documentRef);
+	useEventListener('keydown', globalKeyDownHandler, documentRef);
 
 	useEffect(() => {
 		if (canvasRef.current) {
 			canvasRef.current.width = SCREEN_WIDTH;
 			canvasRef.current.height = SCREEN_HEIGHT;
 
-			const ctx = canvasRef.current.getContext("2d");
+			const ctx = canvasRef.current.getContext('2d');
 			if (ctx) {
 				window.addEventListener('resize', () => {
 					initizalize();
@@ -310,7 +341,12 @@ function App() {
 					if (Cursor.visual) {
 						ctx.fillStyle = '#6D6A7F33';
 
-						const { col, row, width, height } = absRect(Cursor.startCol, Cursor.startRow, Cursor.col, Cursor.row);
+						const { col, row, width, height } = absRect(
+							Cursor.startCol,
+							Cursor.startRow,
+							Cursor.col,
+							Cursor.row
+						);
 
 						drawRoundedRect(
 							ctx,
@@ -325,19 +361,19 @@ function App() {
 					}
 
 					ctx.fillStyle = 'currentColor';
-					const backgroundNodes = contentList.filter(node => node.text === HIGHLIGHT_BLOCK);
-					const contentNodes = contentList.filter(node => node.text !== HIGHLIGHT_BLOCK);
+					const backgroundNodes = contentList.filter(
+						(node) => node.text === HIGHLIGHT_BLOCK
+					);
+					const contentNodes = contentList.filter(
+						(node) => node.text !== HIGHLIGHT_BLOCK
+					);
 
 					for (let bg of backgroundNodes) {
 						const { text, row, col } = bg;
 						ctx.save();
 						ctx.fillStyle = 'currentColor';
 						ctx.globalAlpha = 0.5;
-						ctx.fillText(
-							text,
-							col * CELL_WIDTH,
-							row * CELL_HEIGHT
-						);
+						ctx.fillText(text, col * CELL_WIDTH, row * CELL_HEIGHT);
 						ctx.restore();
 					}
 
@@ -368,7 +404,7 @@ function App() {
 							true
 						);
 					}
-				}
+				};
 
 				animate();
 				initizalize();
@@ -378,8 +414,17 @@ function App() {
 
 	return (
 		<div className="App">
-			<canvas ref={canvasRef} id="canvas" width="100%" height="100%"></canvas>
-			<textarea id="input-box" onKeyDown={textInputKeyDownHandler} ref={textInputRef}></textarea>
+			<canvas
+				ref={canvasRef}
+				id="canvas"
+				width="100%"
+				height="100%"
+			></canvas>
+			<textarea
+				id="input-box"
+				onKeyDown={textInputKeyDownHandler}
+				ref={textInputRef}
+			></textarea>
 		</div>
 	);
 }
