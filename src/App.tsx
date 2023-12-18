@@ -147,7 +147,7 @@ function App() {
 	};
 
 	const findIndexAtCursor = () => {
-		return contentList.findLastIndex((item) => {
+		return contentList.findLastIndex((item: ContentNode) => {
 			const lines = item.text.split('\n');
 			const width = Math.max(
 				1,
