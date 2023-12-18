@@ -1,10 +1,10 @@
-import { readText as readTextFromClipboard } from '@tauri-apps/api/clipboard';
 import { KeyboardEvent, useEffect, useRef } from 'react';
 import useEventListener from './utils/useEventListener';
 import './App.css';
 import { drawRoundedRect } from './utils/roundedRect';
 import { absRect } from './utils/math';
 import { HIGHLIGHT_BLOCK } from './constant';
+import { readTextFromClipboard, writeTextToClipboard } from './utils/clipboard';
 
 const KEY_DIRECTION = {
 	L: { col: 1, row: 0 },
@@ -49,7 +49,13 @@ function App() {
 	let COLS = ~~(SCREEN_WIDTH / CELL_WIDTH);
 	let ROWS = ~~(SCREEN_HEIGHT / CELL_HEIGHT);
 
-	let contentList: ContentNode[] = [];
+	let contentList: ContentNode[] = JSON.parse(
+		localStorage.getItem('contentList') ?? '[]'
+	);
+
+	const persistContentList = () => {
+		localStorage.setItem('contentList', JSON.stringify(contentList));
+	};
 
 	const Cursor = {
 		startRow: 0,
@@ -146,14 +152,18 @@ function App() {
 		};
 	};
 
+	const calculateContentSize = (content: string) => {
+		const lines = content.split('\n');
+		const width = Math.max(
+			1,
+			lines.reduce((max, l) => Math.max(max, l.length), 0)
+		);
+		return { width, height: lines.length };
+	};
+
 	const findIndexAtCursor = () => {
-		return contentList.findLastIndex((item: ContentNode) => {
-			const lines = item.text.split('\n');
-			const width = Math.max(
-				1,
-				lines.reduce((max, l) => Math.max(max, l.length), 0)
-			);
-			const height = Math.max(1, lines.length);
+		return contentList.findIndex((item) => {
+			const { width, height } = calculateContentSize(item.text);
 			return (
 				Cursor.row >= item.row &&
 				Cursor.row < item.row + height &&
@@ -213,9 +223,22 @@ function App() {
 					row: row,
 					col: col,
 				});
+				persistContentList();
 				Cursor.insert = false;
 				hideTextInput();
 			}
+		}
+	};
+
+	const globalMouseHandler = (e: globalThis.MouseEvent) => {
+		// detect click on Canvas, calculate the row and col on the contentList
+		// and move the Cursor to that position
+		if (canvasRef.current && e.target === canvasRef.current) {
+			const rect = canvasRef.current.getBoundingClientRect();
+			const col = ~~((e.clientX - rect.left) / CELL_WIDTH);
+			const row = ~~((e.clientY - rect.top) / CELL_HEIGHT);
+			Cursor.col = col;
+			Cursor.row = row;
 		}
 	};
 
@@ -237,6 +260,7 @@ function App() {
 					);
 					console.log('DBG::NEW NODE', node);
 					contentList.push(node);
+					persistContentList();
 				}
 				e.preventDefault();
 			}
@@ -256,7 +280,7 @@ function App() {
 					Cursor.col + 1,
 					Cursor.row + 1
 				);
-				console.log('SELECTED', selected);
+				await writeTextToClipboard(selected);
 				e.preventDefault();
 			}
 			if (e.key === 'p') {
@@ -267,6 +291,7 @@ function App() {
 						row: Cursor.row,
 						col: Cursor.col,
 					});
+					persistContentList();
 				} else {
 					console.error('Cannot read from clipboard');
 				}
@@ -279,6 +304,7 @@ function App() {
 						row: Cursor.row,
 						col: Cursor.col,
 					});
+					persistContentList();
 				} else if (Cursor.row < ROWS - 1) {
 					Cursor.row += 1;
 				}
@@ -291,6 +317,7 @@ function App() {
 						row: Cursor.row,
 						col: Cursor.col,
 					});
+					persistContentList();
 				} else if (Cursor.row > 0) {
 					Cursor.row -= 1;
 				}
@@ -303,6 +330,7 @@ function App() {
 						row: Cursor.row,
 						col: Cursor.col,
 					});
+					persistContentList();
 				} else if (Cursor.col > 0) {
 					Cursor.col -= 1;
 				}
@@ -316,6 +344,7 @@ function App() {
 						row: Cursor.row,
 						col: Cursor.col,
 					});
+					persistContentList();
 				} else if (Cursor.col < COLS - 1) {
 					Cursor.col += 1;
 				}
@@ -339,6 +368,18 @@ function App() {
 				}
 				e.preventDefault();
 			}
+			if (e.key === '0' || e.key === '$') {
+				e.preventDefault();
+				const editingIndex = findIndexAtCursor();
+				if (editingIndex === -1) return;
+				const editing = contentList[editingIndex];
+				const { width } = calculateContentSize(editing.text);
+				if (e.key === '0') {
+					Cursor.col = editing.col;
+				} else {
+					Cursor.col = editing.col + width - 1;
+				}
+			}
 			if (e.key === 'e') {
 				e.preventDefault();
 				const editingIndex = findIndexAtCursor();
@@ -347,6 +388,7 @@ function App() {
 				contentList = contentList.filter(
 					(_, index) => index !== editingIndex
 				);
+				persistContentList();
 				Cursor.insert = true;
 				showTextInput(editing?.text ?? '', editing.row, editing.col);
 			}
@@ -354,6 +396,7 @@ function App() {
 				contentList = contentList.filter(
 					(item) => item.row !== Cursor.row
 				);
+				persistContentList();
 				e.preventDefault();
 			}
 			if (e.key === 'x') {
@@ -362,6 +405,7 @@ function App() {
 				contentList = contentList.filter(
 					(_, index) => index !== editingIndex
 				);
+				persistContentList();
 				e.preventDefault();
 			}
 			if (e.key === 'i') {
@@ -374,6 +418,7 @@ function App() {
 
 	const documentRef = useRef<Document>(document);
 	useEventListener('keydown', globalKeyDownHandler, documentRef);
+	useEventListener('click', globalMouseHandler, documentRef);
 
 	useEffect(() => {
 		if (canvasRef.current) {
